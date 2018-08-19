@@ -54,10 +54,10 @@ extern "C" {
  */
 /** @{ */
 
-/** The current Dokan version (ver 1.0.0). \ref DOKAN_OPTIONS.Version */
-#define DOKAN_VERSION 100
-/** Minimum Dokan version (ver 1.0.0) accepted. */
-#define DOKAN_MINIMUM_COMPATIBLE_VERSION 100
+/** The current Dokan version (ver 1.2.0). \ref DOKAN_OPTIONS.Version */
+#define DOKAN_VERSION 120
+/** Minimum Dokan version (ver 1.1.0) accepted. */
+#define DOKAN_MINIMUM_COMPATIBLE_VERSION 110
 /** Maximum number of dokan instances.*/
 #define DOKAN_MAX_INSTANCES 32
 /** Driver file name including the DOKAN_MAJOR_API_VERSION */
@@ -622,6 +622,7 @@ typedef struct _DOKAN_OPERATIONS {
   *
   * Get specified information about the security of a file or directory.
   *
+  * Return \c STATUS_NOT_IMPLEMENTED to let dokan library build a sddl of the current process user with authenticate user rights for context menu.
   * Return \c STATUS_BUFFER_OVERFLOW if buffer size is too small.
   *
   * \since Supported since version 0.6.0. The version must be specified in \ref DOKAN_OPTIONS.Version.

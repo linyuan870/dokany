@@ -118,11 +118,11 @@ PDokanFCB DokanGetFCB(__in PDokanVCB Vcb, __in PWCHAR FileName,
               "for %ls\n",
               &fcb->FileName, fcb->FileCount, FileName);
     if (fcb->FileName.Length == FileNameLength // FileNameLength in bytes
-      && RtlEqualUnicodeString(&fn, &fcb->FileName, !CaseSensitive)) {
-        // we have the FCB which is already allocated and used
-        DDbgPrint("  Found existing FCB for %ls\n", FileName);
-        DokanFCBUnlock(fcb);
-        break;
+        && RtlEqualUnicodeString(&fn, &fcb->FileName, !CaseSensitive)) {
+      // we have the FCB which is already allocated and used
+      DDbgPrint("  Found existing FCB for %ls\n", FileName);
+      DokanFCBUnlock(fcb);
+      break;
     }
     DokanFCBUnlock(fcb);
 
@@ -400,7 +400,7 @@ Otherwise, STATUS_SHARING_VIOLATION is returned.
 #if (NTDDI_VERSION >= NTDDI_VISTA)
   //
   //  Do an extra test for writeable user sections if the user did not allow
-  //  write sharing - this is neccessary since a section may exist with no
+  //  write sharing - this is necessary since a section may exist with no
   //  handles
   //  open to the file its based against.
   //
@@ -580,7 +580,7 @@ Return Value:
     }
 
     if (relatedFileObject != NULL // Get RelatedFileObject filename.
-      && relatedFileObject->FsContext2) {
+        && relatedFileObject->FsContext2) {
       // Using relatedFileObject->FileName is not safe here, use cached filename
       // from context.
       PDokanCCB relatedCcb = (PDokanCCB)relatedFileObject->FsContext2;
@@ -706,16 +706,16 @@ Return Value:
 
     // Fail if device is read-only and request involves a write operation
 
-    if (IS_DEVICE_READ_ONLY(DeviceObject)
-      && ((disposition == FILE_SUPERSEDE) || (disposition == FILE_CREATE) ||
-          (disposition == FILE_OVERWRITE) ||
-          (disposition == FILE_OVERWRITE_IF) ||
-          (irpSp->Parameters.Create.Options & FILE_DELETE_ON_CLOSE))) {
+    if (IS_DEVICE_READ_ONLY(DeviceObject) &&
+        ((disposition == FILE_SUPERSEDE) || (disposition == FILE_CREATE) ||
+         (disposition == FILE_OVERWRITE) ||
+         (disposition == FILE_OVERWRITE_IF) ||
+         (irpSp->Parameters.Create.Options & FILE_DELETE_ON_CLOSE))) {
 
-        DDbgPrint("    Media is write protected\n");
-        status = STATUS_MEDIA_WRITE_PROTECTED;
-        ExFreePool(fileName);
-        __leave;
+      DDbgPrint("    Media is write protected\n");
+      status = STATUS_MEDIA_WRITE_PROTECTED;
+      ExFreePool(fileName);
+      __leave;
     }
 
     if (irpSp->Flags & SL_OPEN_TARGET_DIRECTORY) {
@@ -1121,7 +1121,7 @@ Return Value:
           // won't work unless the oplock gets broken before the
           // user mode create happens.
           // It is believed that FILE_COMPLETE_IF_OPLOCKED is extremely
-          // rare and may never happend during normal operation.
+          // rare and may never happened during normal operation.
         } else {
 
           if (status == STATUS_SHARING_VIOLATION &&
@@ -1280,9 +1280,9 @@ Return Value:
       }
     }
 
-    if (parentDir // SL_OPEN_TARGET_DIRECTORY
-      && fileName) { // fcb owns parentDir, not fileName
-        ExFreePool(fileName);
+    if (parentDir      // SL_OPEN_TARGET_DIRECTORY
+        && fileName) { // fcb owns parentDir, not fileName
+      ExFreePool(fileName);
     }
 
     DokanCompleteIrpRequest(Irp, status, info);
@@ -1293,14 +1293,16 @@ Return Value:
   return status;
 }
 
-VOID DokanCompleteCreate(__in PIRP_ENTRY IrpEntry,
-                         __in PEVENT_INFORMATION EventInfo) {
+NTSTATUS DokanCompleteCreate(__in PIRP_ENTRY IrpEntry,
+                             __in PEVENT_INFORMATION EventInfo,
+                             __in BOOLEAN Wait) {
   PIRP irp;
   PIO_STACK_LOCATION irpSp;
   NTSTATUS status;
   ULONG info;
   PDokanCCB ccb;
   PDokanFCB fcb;
+  BOOLEAN FCBAcquired = FALSE;
 
   irp = IrpEntry->Irp;
   irpSp = IrpEntry->IrpSp;
@@ -1312,7 +1314,15 @@ VOID DokanCompleteCreate(__in PIRP_ENTRY IrpEntry,
 
   fcb = ccb->Fcb;
   ASSERT(fcb != NULL);
-  DokanFCBLockRW(fcb);
+
+  if (FALSE == Wait) {
+    DokanFCBTryLockRW(fcb, FCBAcquired);
+    if (FALSE == FCBAcquired) {
+      return STATUS_PENDING;
+    }
+  } else {
+    DokanFCBLockRW(fcb);
+  }
 
   DDbgPrint("  FileName:%wZ\n", &fcb->FileName);
 
@@ -1414,4 +1424,6 @@ VOID DokanCompleteCreate(__in PIRP_ENTRY IrpEntry,
   DokanCompleteIrpRequest(irp, status, info);
 
   DDbgPrint("<== DokanCompleteCreate\n");
+
+  return STATUS_SUCCESS;
 }
